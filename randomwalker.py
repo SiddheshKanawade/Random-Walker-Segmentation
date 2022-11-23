@@ -10,62 +10,69 @@ from utils.create_segment import get_seeds, get_transition_prob, random_walker, 
 from utils.create_segment_skimage import random_walker_skimage
 from utils.helper import *
 
-# Add try and expect error method in them
-if __name__ == "__main__":
-    args = argparse.ArgumentParser()
-    args.add_argument("-i", "--imagePath", dest="imagePath", type=str)
-    args.add_argument("-n", "--totalSegments", dest="totalSegments", type=int)
-    args.add_argument("-p", "--totalPixels", dest="totalPixels", type=int)
-    args = args.parse_args()
+try:
 
-    img = cv.imread(args.imagePath)
-    noSegments = args.totalSegments
-    noPixels = args.totalPixels
+    if __name__ == "__main__":
+        args = argparse.ArgumentParser()
+        args.add_argument("-i", "--imagePath", dest="imagePath", type=str)
+        args.add_argument("-n", "--totalSegments",
+                          dest="totalSegments", type=int)
+        args.add_argument("-p", "--totalPixels", dest="totalPixels", type=int)
+        args = args.parse_args()
 
-    labelledPixelsXY = []
+        img = cv.imread(args.imagePath)
+        total_segments = args.totalSegments
+        total_pixels = args.totalPixels
 
-    labelledPixelsXY = get_seeds(noSegments, img, noPixels, labelledPixelsXY)
-    imgCopy = save_initial_markings(img, noSegments, labelledPixelsXY)
+        labels_algorithm = []
 
-    # >>>>>>> Resize the image to save computational time
-    imgOriginal = np.array(img)
-    img = img/255.0
-    img = cv.resize(img, (int(img.shape[1]*FACTOR)+1,
-                          int(img.shape[0]*FACTOR)+1))
+        labels_algorithm = get_seeds(
+            total_segments, img, total_pixels, labels_algorithm)
+        imgCopy = save_initial_markings(img, total_segments, labels_algorithm)
 
-    initiallyMarked = np.zeros((img.shape[0], img.shape[1]), dtype=np.int)
-    initiallyMarked.fill(-1)
-    segments = np.zeros((img.shape[0], img.shape[1]), dtype=np.int)
-    segments.fill(-1)
-    cumilativeProbUpRightDownLeft = np.zeros((img.shape[0],
-                                              img.shape[1], 4), dtype=np.float)
+        # Resize the image to save computational time
+        original_image = np.array(img)
+        img = img/255.0
+        img = cv.resize(img, (int(img.shape[1]*FACTOR)+1,
+                              int(img.shape[0]*FACTOR)+1))
 
-    # Generate the transition probabilites based on pixel similarity
-    cumilativeProbUpRightDownLeft = get_transition_prob(
-        img, cumilativeProbUpRightDownLeft)
+        initial_markings = np.zeros((img.shape[0], img.shape[1]), dtype=np.int)
+        initial_markings.fill(-1)
+        segments = np.zeros((img.shape[0], img.shape[1]), dtype=np.int)
+        segments.fill(-1)
+        cummulative_prob_neighbour = np.zeros((img.shape[0],
+                                               img.shape[1], 4), dtype=np.float)
 
-    for s in range(noSegments):
-        for a in range(len(labelledPixelsXY[s])):
-            initiallyMarked[down(labelledPixelsXY[s][a][1]),
-                            down(labelledPixelsXY[s][a][0])] = s+1
-            segments[down(labelledPixelsXY[s][a][1]),
-                     down(labelledPixelsXY[s][a][0])] = s+1
+        # Generate the transition probabilites based on pixel similarity
+        cummulative_prob_neighbour = get_transition_prob(
+            img, cummulative_prob_neighbour)
 
-    # Random Walker Algorithm
-    segments_cp = segments
-    assert segments_cp.all() == segments.all()
-    segments_rw = random_walker(segments, initiallyMarked,
-                                cumilativeProbUpRightDownLeft)
+        for s in range(total_segments):
+            for a in range(len(labels_algorithm[s])):
+                initial_markings[down(labels_algorithm[s][a][1]),
+                                 down(labels_algorithm[s][a][0])] = s+1
+                segments[down(labels_algorithm[s][a][1]),
+                         down(labels_algorithm[s][a][0])] = s+1
 
-    outputImg = get_output_image(imgOriginal, segments_rw)
-    outputImg_skimage = random_walker_skimage(
-        args, noSegments, labelledPixelsXY, imgOriginal, imgCopy, outputImg, segments_cp)
+        # Random Walker Algorithm
+        segments_rw = random_walker(segments, initial_markings,
+                                    cummulative_prob_neighbour)
 
-    generate_images(args, imgCopy, outputImg)
+        output_image = get_output_image(original_image, segments_rw)
+        output_image_skimage = random_walker_skimage(
+            args, total_segments, labels_algorithm, original_image, imgCopy, output_image)
 
-    logger.info(f"Completed the segmentation")
-    logger.info("")
-    logger.info("Calculating Error")
-    error = absolute_mean_error(outputImg, outputImg_skimage)
+        generate_images(args, imgCopy, output_image)
 
-    logger.info(f"The mean absolute error is {error}")
+        logger.info(f"Completed the segmentation")
+        logger.info("")
+        logger.info(f"Total Segments used: {total_segments}")
+        logger.info(f"Total Pixels used: {total_pixels}")
+        image_name = args.imagePath.split("/")[-1]
+        logger.info(f"Image Used: {image_name}")
+        logger.info("Calculating Error")
+        error = absolute_mean_error(output_image, output_image_skimage)
+
+        logger.info(f"The mean absolute error is {error}")
+except Exception as e:
+    logger.exception(e)

@@ -4,61 +4,61 @@ import cv2 as cv
 import logging
 import random
 
-from utils.helper import getVal
+from utils.helper import get_value
 from utils.logger import logger
 
 clicks = []
 
 
-def get_seeds(noSegments, img, noPixels, labelledPixelsXY):
+def get_seeds(total_segments, img, total_pixels, labels_algorithm):
     def mouse_callback(event, x, y, flags, params):
         if event == 1:
             clicks.append([x, y])
             print(clicks)
 
-    for n in range(noSegments):
+    for n in range(total_segments):
         print("NOW WE ARE IN SEGMENT", n)
         cv.imshow("image", img)
         clicks = []
         cv.setMouseCallback('image', mouse_callback)
         while True:
-            if len(clicks) == noPixels:
+            if len(clicks) == total_pixels:
                 break
             cv.waitKey(1)
-        labelledPixelsXY.append(clicks)
+        labels_algorithm.append(clicks)
         clicks = []
     logging.info("Completed making seeds")
-    return labelledPixelsXY
+    return labels_algorithm
 
 
-def save_initial_markings(img, noSegments, labelledPixelsXY):
+def save_initial_markings(img, total_segments, labels_algorithm):
     imgCopy = np.array(img)
-    for n in range(noSegments):
-        for i in range(len(labelledPixelsXY[n])):
-            cv.circle(imgCopy, (labelledPixelsXY[n][i][0],
-                                labelledPixelsXY[n][i][1]), 2, COLORS[n+1], 3)
+    for n in range(total_segments):
+        for i in range(len(labels_algorithm[n])):
+            cv.circle(imgCopy, (labels_algorithm[n][i][0],
+                                labels_algorithm[n][i][1]), 2, COLORS[n+1], 3)
     return imgCopy
 
 
-def get_transition_prob(img, cumilativeProbUpRightDownLeft):
+def get_transition_prob(img, cummulative_prob_neighbour):
     for y in range(img.shape[0]):
         for x in range(img.shape[1]):
-            urdl = [getVal(y-1, x, img), getVal(y, x+1, img),
-                    getVal(y+1, x, img), getVal(y, x-1, img)]
-            nonNormalizedProbURDL = []
+            urdl = [get_value(y-1, x, img), get_value(y, x+1, img),
+                    get_value(y+1, x, img), get_value(y, x-1, img)]
+            non_normalized_proburdl = []
             for a in range(4):
                 tt = np.mean(np.abs(urdl[a]-img[y, x, :]))
                 tt = np.exp(-1*np.power(tt, 2))
-                nonNormalizedProbURDL.append(tt)
-            nonNormalizedProbURDL = np.array(nonNormalizedProbURDL)
+                non_normalized_proburdl.append(tt)
+            non_normalized_proburdl = np.array(non_normalized_proburdl)
             normalizedProbURDL = \
-                nonNormalizedProbURDL / np.sum(nonNormalizedProbURDL)
-            cumilativeProbUpRightDownLeft[y, x, 0] = normalizedProbURDL[0]
+                non_normalized_proburdl / np.sum(non_normalized_proburdl)
+            cummulative_prob_neighbour[y, x, 0] = normalizedProbURDL[0]
             for a in range(1, 4):
-                cumilativeProbUpRightDownLeft[y, x, a] =\
-                    cumilativeProbUpRightDownLeft[y, x, a-1] +\
+                cummulative_prob_neighbour[y, x, a] =\
+                    cummulative_prob_neighbour[y, x, a-1] +\
                     normalizedProbURDL[a]
-    return cumilativeProbUpRightDownLeft
+    return cummulative_prob_neighbour
 
 
 def random_walker(segments, initiallyMarked, cumilativeProbUpRightDownLeft):

@@ -9,23 +9,23 @@ import cv2 as cv
 from utils.helper import down
 
 
-def random_walker_skimage(args, noSegments, labelledPixelsXY, imgOriginal, imgCopy, outputImg, segments):
+def random_walker_skimage(args, total_segments, labels_algorithm, original_image, image_copy, output_image):
     img = cv.imread(args.imagePath)
     img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     img = img/255.0
     img = cv.resize(img, (int(img.shape[1]*FACTOR)+1,
                           int(img.shape[0]*FACTOR)+1))
     markers = np.zeros(img.shape, dtype=np.uint)
-    for s in range(noSegments):
-        for a in range(len(labelledPixelsXY[s])):
-            x_coord = int(labelledPixelsXY[s][a][0]*FACTOR+1)
-            y_coord = int(labelledPixelsXY[s][a][1]*FACTOR+1)
+    for s in range(total_segments):
+        for a in range(len(labels_algorithm[s])):
+            x_coord = int(labels_algorithm[s][a][0]*FACTOR+1)
+            y_coord = int(labels_algorithm[s][a][1]*FACTOR+1)
             markers[y_coord, x_coord] = s+1
     labels = random_walker_inbuilt(img, markers, beta=250000, mode='bf')
-    built_in_outputImg = np.array(imgOriginal)
-    for y in range(built_in_outputImg.shape[0]):
-        for x in range(built_in_outputImg.shape[1]):
-            built_in_outputImg[y, x] = COLORS[labels[down(y), down(x)]]
+    output_image = np.array(original_image)
+    for y in range(output_image.shape[0]):
+        for x in range(output_image.shape[1]):
+            output_image[y, x] = COLORS[labels[down(y), down(x)]]
     cv.imwrite("comparison.jpg", np.concatenate(
-        (imgCopy, outputImg, built_in_outputImg), axis=1))
-    return built_in_outputImg
+        (image_copy, output_image, output_image), axis=1))
+    return output_image
