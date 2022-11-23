@@ -11,6 +11,7 @@ from utils.helper import down
 
 def random_walker_skimage(args, total_segments, labels_algorithm, original_image, image_copy, output_image):
     img = cv.imread(args.imagePath)
+    image_name = args.imagePath.split("/")[-1]
     img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     img = img/255.0
     img = cv.resize(img, (int(img.shape[1]*FACTOR)+1,
@@ -26,6 +27,6 @@ def random_walker_skimage(args, total_segments, labels_algorithm, original_image
     for y in range(output_image.shape[0]):
         for x in range(output_image.shape[1]):
             output_image[y, x] = COLORS[labels[down(y), down(x)]]
-    cv.imwrite("comparison.jpg", np.concatenate(
+    cv.imwrite(f"comparison_{image_name}.jpg", np.concatenate(
         (image_copy, output_image, output_image), axis=1))
     return output_image
